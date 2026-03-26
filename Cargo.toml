@@ -1,5 +1,5 @@
 [package]
-name = "pds_generator"
+name = "pds-generator"
 version = "0.1.0"
 edition = "2024"
 
@@ -10,5 +10,5 @@ clap = { version = "4.6.0", default-features = false, features = [
 ] }
 
 [[bin]]
-name = "pds_generator"
+name = "pds-generator"
 path = "main.rs"
