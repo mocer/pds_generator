@@ -16,9 +16,11 @@ impl fmt::Display for PdsError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             PdsError::InvalidLength(n) => write!(f, "PDS must be 5 bytes, got {n}"),
-            PdsError::InvalidPrefix(c) => write!(f, "PDS must start with 'W', got '{}'", *c as char),
-            PdsError::InvalidChar(c)   => write!(f, "Invalid character '{}' in PDS", *c as char),
-            PdsError::Overflow         => write!(f, "PDS overflow: exceeded maximum WZZZZ"),
+            PdsError::InvalidPrefix(c) => {
+                write!(f, "PDS must start with 'W', got '{}'", *c as char)
+            }
+            PdsError::InvalidChar(c) => write!(f, "Invalid character '{}' in PDS", *c as char),
+            PdsError::Overflow => write!(f, "PDS overflow: exceeded maximum WZZZZ"),
         }
     }
 }
@@ -73,11 +75,22 @@ fn parse_pds(input: &str) -> Result<[u8; 5], PdsError> {
 fn increment_pds(pds: &mut [u8; 5]) -> Result<(), PdsError> {
     for i in (1..5).rev() {
         match pds[i] {
-            b'0'..=b'8' => { pds[i] += 1; return Ok(()); }
-            b'9'        => { pds[i] = b'A'; return Ok(()); }
-            b'A'..=b'Y' => { pds[i] += 1; return Ok(()); }
-            b'Z'        => { pds[i] = b'0'; }
-            c           => return Err(PdsError::InvalidChar(c)),
+            b'0'..=b'8' => {
+                pds[i] += 1;
+                return Ok(());
+            }
+            b'9' => {
+                pds[i] = b'A';
+                return Ok(());
+            }
+            b'A'..=b'Y' => {
+                pds[i] += 1;
+                return Ok(());
+            }
+            b'Z' => {
+                pds[i] = b'0';
+            }
+            c => return Err(PdsError::InvalidChar(c)),
         }
     }
     Err(PdsError::Overflow)
@@ -133,7 +146,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     // -- parse format
     let format = match matches.get_one::<String>("format") {
         Some(s) => parse_format(s)?,
-        None    => OutputFormat::Csv,
+        None => OutputFormat::Csv,
     };
 
     // -- output
@@ -142,11 +155,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     match format {
         OutputFormat::Csv => {
+            writeln!(out, "current_pds_code,flag_utilizzo,data_utilizzo")?;
             for _ in 0..quantity {
                 increment_pds(&mut pds)?;
                 // SAFETY: pds contains only ASCII bytes validated on input + controlled increments
                 let s = std::str::from_utf8(&pds).unwrap();
-                writeln!(out, "{s},N,,")?;
+                writeln!(out, "{s},N,")?;
             }
         }
         OutputFormat::Sql => {
@@ -214,11 +228,17 @@ mod tests {
 
     #[test]
     fn test_invalid_prefix() {
-        assert!(matches!(parse_pds("A1UL5"), Err(PdsError::InvalidPrefix(b'A'))));
+        assert!(matches!(
+            parse_pds("A1UL5"),
+            Err(PdsError::InvalidPrefix(b'A'))
+        ));
     }
 
     #[test]
     fn test_invalid_char() {
-        assert!(matches!(parse_pds("W1UL!"), Err(PdsError::InvalidChar(b'!'))));
+        assert!(matches!(
+            parse_pds("W1UL!"),
+            Err(PdsError::InvalidChar(b'!'))
+        ));
     }
 }
